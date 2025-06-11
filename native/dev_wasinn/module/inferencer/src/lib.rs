@@ -64,7 +64,6 @@ impl chatbot::Guest for Chatbot
 
             let mut count = 0;
             loop {
-                println!("count {}, max: {:?}", count, session.config.max_token);
                 match session.config.max_token {
                     Some(i) if count >= i => break,
                     _ => (),

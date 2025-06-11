@@ -7,6 +7,7 @@ mod generated_
     wasmtime::component::bindgen!({
         world: "ml",
         path: "../inferencer/wit/ncl-ml.wit",
+        async: true
     });
 }
 
@@ -34,7 +35,7 @@ impl<'a> NclMlView<'a>
 
 pub struct NclMlContenx
 {
-    sessions: HashMap<u64, UnboundedSender<u32>>,
+    sessions: HashMap<u64, UnboundedSender<(u64, u32)>>,
 }
 
 impl Default for NclMlContenx
@@ -49,26 +50,35 @@ impl Default for NclMlContenx
 
 impl NclMlContenx
 {
-    pub fn new_session(&mut self, session_id: u64) -> UnboundedReceiver<u32>
+    pub fn new_session(&mut self, session_id: u64, token_sender: UnboundedSender<(u64, u32)>)
     {
-        let (sender, receiver) = unbounded_channel::<u32>();
-        self.sessions.insert(session_id, sender);
-        receiver
+        self.sessions.insert(session_id, token_sender);
+    }
+
+    pub fn end_session(&mut self, session_id: &u64) {
+        self.sessions.remove(session_id);
     }
 }
+
 impl types::token_generator::Host for NclMlView<'_>
 {
-    fn generate(&mut self, session_id: types::token_generator::SessionId, token: types::token_generator::TokenId)
+    async fn generate(&mut self, session_id: types::token_generator::SessionId, token: types::token_generator::TokenId)
         -> u32
     {
         match self.ctx.sessions.get(&session_id) {
             None => 0,
-            Some(session) => 1,
+            Some(token_sender) => match token_sender.send((session_id, token)) {
+                Ok(()) => 1,
+                Err(e) => {
+                    tracing::error!("failed to yield token due to SendError: {}", e);
+                    0
+                }
+             },
         }
     }
 }
 
-pub fn add_to_linker<T>(
+pub fn add_to_linker<T: Send>(
     l: &mut wasmtime::component::Linker<T>,
     f: impl Fn(&mut T) -> NclMlView<'_> + Send + Sync + Copy + 'static,
 ) -> anyhow::Result<()>

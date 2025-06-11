@@ -5,48 +5,79 @@ use std::{
 };
 
 use anyhow::Result;
-use server::runtime::WasmInstance;
+use server::runtime::{ChatbotRequest, WasmInstance};
 use tokenizers::tokenizer::Tokenizer;
 use wasmtime::{component::Component, Config, Engine};
+use tokio::{io::{stdin, BufReader, AsyncBufReadExt}, sync::mpsc};
 
-fn main() -> Result<()>
+#[tokio::main]
+async fn main() -> Result<()>
 {
     tracing_subscriber::fmt::Subscriber::builder()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_env_filter("debug")
+        .with_max_level(tracing::Level::ERROR)
+        .with_env_filter("error")
         .init();
-
+    println!("🦙 Chatbot is getting prepared. Please wait!");
     let tokenizer_path = "./models/onnx/llama3.1-8b-instruct/tokenizer.json";
-    let tokenizer = Tokenizer::from_file(tokenizer_path).unwrap();
-    let engine = Arc::new(Engine::new(&Config::new()).unwrap());
+    let tokenizer = Tokenizer::from_file(tokenizer_path).map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    let mut config = Config::new();
+    config.async_support(true);
+    let engine = Arc::new(Engine::new(&config)?);
     let module = Arc::new(
-        Component::from_file(&engine, Path::new("../inferencer/target/wasm32-wasip1/release/ncl_ml.wasm")).unwrap(),
+        Component::from_file(&engine, Path::new("../inferencer/target/wasm32-wasip1/release/ncl_ml.wasm"))?,
     );
-    let stdin = io::stdin();
+
+    let mut stdin = BufReader::new(stdin()).lines();
     let mut stdout = io::stdout();
-    let mut instance = WasmInstance::new(engine.clone(), module.clone(), "llama3.1-8b-instruct")?;
-    let (session_id, session_receiver) = instance.register().unwrap();
+    
+    let (mut token_receiver, chatbot_sender) = WasmInstance::new(engine.clone(), module.clone(), "llama3.1-8b-instruct").await?;
+    let mut current_session: Option<u64> = None;
+    
     println!("🦙 Chatbot ready. Type a message or 'exit':");
-    for line in stdin.lock().lines() {
-        let input = line?;
-        if input.trim().to_lowercase() == "exit" {
-            break;
+    loop {
+        tokio::select! {
+            Ok(Some(input)) = stdin.next_line() => {
+                let input = input.trim();
+                match (input, current_session) {
+                    ("exit", Some(session_id)) => {
+                        // stop current inference
+                        chatbot_sender.send(ChatbotRequest::EndSession(session_id));
+                    }
+                    ("exit", None) => {
+                        tracing::error!("No active session to exit");
+                    }
+                    ("join", Some(session_id)) => {
+                        tracing::error!("must exit current session {} before joining a new one!", session_id);
+                    }
+                    ("join", None) => {
+                        chatbot_sender.send(ChatbotRequest::StartSession);
+                        current_session = Some(0);
+                    }
+                    (other, Some(session_id)) => {
+                        let prompt = format!(
+                            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant. Make your \
+                            answers as short as possible.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\\
+                            n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
+                            other
+                        );
+                        let encoding = tokenizer.encode(prompt, false).map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                        let ids = encoding.get_ids().iter().map(|&id| id as i64).collect();
+                        chatbot_sender.send(ChatbotRequest::Infer(session_id, ids));
+                    }
+                    (other, None) => {
+                        tracing::error!("unexpected command: {}", other);
+                    }
+                };
+            }
+            Some((session_id, token)) = token_receiver.recv() => {
+                if let Some(session_id) = current_session {
+                    // print the token in the session
+                    let token = tokenizer.decode(&[token], false).map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                    write!(stdout, "{}", token)?;
+                    stdout.flush()?;
+                }
+            }
         }
-        let prompt = format!(
-            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant. Make your \
-             answers as short as possible.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\\
-             n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
-            input
-        );
-        let encoding = tokenizer.encode(prompt, false).unwrap();
-        let ids = encoding.get_ids().iter().map(|&id| id as i64).collect();
-
-        let result = instance.infer_llm(session_id, ids)?;
-        let response = tokenizer.decode(&result, false).unwrap();
-        writeln!(stdout, "Bot: {}\n", response)?;
-        stdout.flush()?;
     }
-
-    println!("👋 Goodbye.");
     Ok(())
 }
