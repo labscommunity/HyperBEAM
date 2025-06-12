@@ -2,7 +2,6 @@ use std::sync::{Mutex, OnceLock};
 use std::thread;
 
 use rustler::NifResult;
-use server;
 
 static SERVER_STARTED: OnceLock<Mutex<bool>> = OnceLock::new();
 
@@ -16,8 +15,8 @@ fn load_http_server(port: u16, path: String) -> NifResult<String> {
     }
 
     thread::spawn(move || {
-        let runtime = server::create_runtime().expect("Tokio runtime not created!");
-        let _ = runtime.block_on(server::start_server(port, path));
+        let runtime = http_server::create_runtime().expect("Tokio runtime not created!");
+        let _ = runtime.block_on(http_server::start_server(3002, "../inferencer/target/wasm32-wasip1/release/ncl_ml.wasm", "llama3.2-1b-instruct-fp32", http_server::ExecutionTarget::GPU));
     });
 
     *lock = true;

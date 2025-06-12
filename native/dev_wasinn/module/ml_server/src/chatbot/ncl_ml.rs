@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
+use tokenizers::tokenizer::Tokenizer;
 use tokio::sync::mpsc::UnboundedSender;
 use wasmtime::component::ResourceTable;
 
@@ -36,22 +37,21 @@ impl<'a> NclMlView<'a>
 
 pub struct NclMlContenx
 {
-    sessions: HashMap<u64, UnboundedSender<(u64, u32)>>,
-}
-
-impl Default for NclMlContenx
-{
-    fn default() -> Self
-    {
-        Self {
-            sessions: HashMap::new(),
-        }
-    }
+    pub sessions: HashMap<u64, UnboundedSender<(u64, String)>>,
+    pub tokenizer: Tokenizer
 }
 
 impl NclMlContenx
 {
-    pub fn new_session(&mut self, session_id: u64, token_sender: UnboundedSender<(u64, u32)>)
+    pub fn new(model_id: &str) -> Self {
+        let tokenizer_path = format!("../models/onnx/{}/tokenizer.json", model_id);
+        let tokenizer = Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::Error::msg(e.to_string())).unwrap();
+        Self { 
+            sessions: HashMap::new(),
+            tokenizer
+        }
+    }
+    pub fn new_session(&mut self, session_id: u64, token_sender: UnboundedSender<(u64, String)>)
     {
         self.sessions.insert(session_id, token_sender);
     }
@@ -72,13 +72,16 @@ impl types::token_generator::Host for NclMlView<'_>
     {
         match self.ctx.sessions.get(&session_id) {
             None => 0,
-            Some(token_sender) => match token_sender.send((session_id, token)) {
-                Ok(()) => 1,
-                Err(e) => {
-                    tracing::error!("failed to yield token due to SendError: {}", e);
-                    0
-                },
-            },
+            Some(token_sender) => {
+                let token = self.ctx.tokenizer.decode(&[token], false).map_err(|e| anyhow::Error::msg(e.to_string())).unwrap();
+                match token_sender.send((session_id, token)) {
+                    Ok(()) => 1,
+                    Err(e) => {
+                        tracing::error!("failed to yield token due to SendError: {}", e);
+                        0
+                    },
+                }
+            }
         }
     }
 }
