@@ -18,6 +18,7 @@ use ort::{
 };
 use tokenizers::Tokenizer;
 use tokio::{net::TcpListener, sync::Mutex, runtime::{Runtime, Builder}};
+use tower_http::cors::{CorsLayer, Any};
 
 pub fn create_runtime() -> anyhow::Result<Runtime>
 {
@@ -66,7 +67,16 @@ pub async fn start_server(port: u16, wasm_module_path: &str, model_id: &str, tar
 		tokenizer: Arc::new(tokenizer)
 	};
 
-    let app = Router::new().route("/chat/completions", post(generate)).with_state(app_state).into_make_service();
+	let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app = Router::new()
+		.route("/chat/completions", post(generate))
+		.layer(cors)
+		.with_state(app_state)
+		.into_make_service();
 	let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
 	let listener = TcpListener::bind(addr).await?;
 	tracing::info!("Listening on {}", listener.local_addr()?);
@@ -144,7 +154,6 @@ fn generate_stream(
 				128000..=128255 => break,
 				_ => {
 					let token = tokenizer.decode(&[next_token as _], true).unwrap();
-					println!("next token: {}", token);
 					yielder.r#yield(Event::default().data(token)).await;
 					// extend input slices to include next_token
 					input_ids.push(next_token as i64);
