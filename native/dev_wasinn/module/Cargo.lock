@@ -705,9 +705,8 @@ dependencies = [
 name = "dev_wasinn_nif"
 version = "0.1.0"
 dependencies = [
+ "http_server",
  "rustler",
- "server",
- "tokio",
 ]
 
 [[package]]
@@ -1212,6 +1211,13 @@ dependencies = [
  "http-body",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "http_server"
+version = "0.1.0"
+dependencies = [
+ "ml_server",
 ]
 
 [[package]]
@@ -1844,6 +1850,32 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "ml_server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bytemuck",
+ "bytes",
+ "futures",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "image",
+ "ndarray",
+ "serde",
+ "serde_json",
+ "tokenizers",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "wasmtime",
+ "wasmtime-wasi",
+ "wasmtime-wasi-nn",
 ]
 
 [[package]]
@@ -2750,32 +2782,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "bytemuck",
- "bytes",
- "futures",
- "http-body-util",
- "hyper",
- "hyper-util",
- "image",
- "ndarray",
- "serde",
- "serde_json",
- "tokenizers",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "wasmtime",
- "wasmtime-wasi",
- "wasmtime-wasi-nn",
 ]
 
 [[package]]
