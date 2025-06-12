@@ -62,7 +62,7 @@ impl NclMlContenx
 
 impl types::token_generator::Host for NclMlView<'_>
 {
-    async fn generate(&mut self, session_id: types::token_generator::SessionId, token: types::token_generator::TokenId)
+    async fn yield_(&mut self, session_id: types::token_generator::SessionId, token: types::token_generator::TokenId)
         -> u32
     {
         match self.ctx.sessions.get(&session_id) {

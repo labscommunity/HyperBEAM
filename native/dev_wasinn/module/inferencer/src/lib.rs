@@ -109,7 +109,7 @@ impl chatbot::Guest for Chatbot
                 // check for end-of-sequence token
                 match next_token {
                     128000..=128255 => break,
-                    _ => match token_generator::generate(session.id, next_token as u32) {
+                    _ => match token_generator::yield_(session.id, next_token as u32) {
                         1 => {
                             // extend input slices to include next_token
                             input_ids_raw.extend_from_slice(&(next_token as i64).to_le_bytes());

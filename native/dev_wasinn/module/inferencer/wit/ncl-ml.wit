@@ -13,7 +13,7 @@ interface chatbot {
 
 interface token-generator {
     use types.{token-id, session-id};
-    generate: func(session: session-id, token: token-id) -> u32;
+    yield: func(session: session-id, token: token-id) -> u32;
 }
 
 

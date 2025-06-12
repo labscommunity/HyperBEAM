@@ -102,12 +102,12 @@ pub mod ncl {
             pub type TokenId = super::super::super::ncl::ml::types::TokenId;
             pub type SessionId = super::super::super::ncl::ml::types::SessionId;
             #[allow(unused_unsafe, clippy::all)]
-            pub fn generate(session: SessionId, token: TokenId) -> u32 {
+            pub fn yield_(session: SessionId, token: TokenId) -> u32 {
                 unsafe {
                     #[cfg(target_arch = "wasm32")]
                     #[link(wasm_import_module = "ncl:ml/token-generator@0.1.0")]
                     unsafe extern "C" {
-                        #[link_name = "generate"]
+                        #[link_name = "yield"]
                         fn wit_import0(_: i64, _: i32) -> i32;
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -376,16 +376,16 @@ pub(crate) use __export_ml_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 639] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x86\x04\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 636] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x83\x04\x01A\x02\x01\
 A\x0a\x01B\x0b\x01y\x04\0\x08token-id\x03\0\0\x01w\x04\0\x0asession-id\x03\0\x02\
 \x01p}\x01k\x04\x01k{\x01r\x03\x08model-ids\x07history\x05\x09max-token\x06\x04\0\
 \x0esession-config\x03\0\x07\x01m\x02\x0finvalid-session\x0dabort-session\x04\0\x06\
 errors\x03\0\x09\x03\0\x12ncl:ml/types@0.1.0\x05\0\x02\x03\0\0\x08token-id\x02\x03\
 \0\0\x0asession-id\x01B\x06\x02\x03\x02\x01\x01\x04\0\x08token-id\x03\0\0\x02\x03\
 \x02\x01\x02\x04\0\x0asession-id\x03\0\x02\x01@\x02\x07session\x03\x05token\x01\0\
-y\x04\0\x08generate\x01\x04\x03\0\x1cncl:ml/token-generator@0.1.0\x05\x03\x02\x03\
-\0\0\x0esession-config\x02\x03\0\0\x06errors\x01B\x0c\x02\x03\x02\x01\x02\x04\0\x0a\
+y\x04\0\x05yield\x01\x04\x03\0\x1cncl:ml/token-generator@0.1.0\x05\x03\x02\x03\0\
+\0\x0esession-config\x02\x03\0\0\x06errors\x01B\x0c\x02\x03\x02\x01\x02\x04\0\x0a\
 session-id\x03\0\0\x02\x03\x02\x01\x04\x04\0\x0esession-config\x03\0\x02\x02\x03\
 \x02\x01\x05\x04\0\x06errors\x03\0\x04\x01px\x01j\0\x01\x05\x01@\x02\x07session\x01\
 \x06prompt\x06\0\x07\x04\0\x05infer\x01\x08\x01@\x01\x06config\x03\0\x01\x04\0\x08\
